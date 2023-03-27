@@ -22,5 +22,8 @@ VIRTUAL_HEIGHT = 243
 PADDLE_SPEED = 200
 
 --powerup numbers
-MULTIBALL = 3
-KEY = 9
+MULTIBALL = 4
+KEY = 10
+
+--powerup spawn timer
+SPAWNTIMER = 25

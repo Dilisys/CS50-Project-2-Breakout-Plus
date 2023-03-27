@@ -55,6 +55,10 @@ function LevelMaker.createMap(level)
         -- whether we want to enable alternating colors for this row
         local alternatePattern = math.random(1, 2) == 1 and true or false
         
+        -- for adding locked bricks, I will basically use the same logic for the alternating row
+        -- whether we want to use locked bricks for this row
+        local lockedBrickPattern = math.random(1, 2) == 1 and true or false
+
         -- choose two colors to alternate between
         local alternateColor1 = math.random(1, highestColor)
         local alternateColor2 = math.random(1, highestColor)
@@ -66,6 +70,9 @@ function LevelMaker.createMap(level)
 
         -- used only when we want to alternate a block, for alternate pattern
         local alternateFlag = math.random(2) == 1 and true or false
+
+        -- used to alternate between locked bricks
+        local lockedFlag = math.random(1, 2) == 1 and true or false
 
         -- solid color we'll use if we're not skipping or alternating
         local solidColor = math.random(1, highestColor)
@@ -106,8 +113,19 @@ function LevelMaker.createMap(level)
                 alternateFlag = not alternateFlag
             end
 
+            if lockedBrickPattern and lockedFlag then
+                b.color = 5 --gold, since the locked bricks are yellow colored
+                b.tier = 3
+                b.isLockedBrick = true
+                lockedFlag = not lockedFlag
+            else
+                b.color = alternateColor1
+                b.tier = alternateTier1
+                lockedFlag = not lockedFlag
+            end
+
             -- if not alternating and we made it here, use the solid color/tier
-            if not alternatePattern then
+            if not alternatePattern and not lockedBrickPattern then
                 b.color = solidColor
                 b.tier = solidTier
             end 

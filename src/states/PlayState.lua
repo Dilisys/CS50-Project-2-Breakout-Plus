@@ -39,7 +39,29 @@ function PlayState:enter(params)
 
     table.insert(self.balls, self.ball)
 
-    self.powerup = Powerup(MULTIBALL)
+    --initialize a table of locked bricks
+    --will use this to determine if the key powerup should spawn
+    --will also be used when all the locked bricks will be unlocked later
+    self.lockedBricks = {}
+
+    for k, brick in pairs(self.bricks) do
+        if brick.isLockedBrick and not brick.unlocked then
+            table.insert(self.lockedBricks, brick)
+        end
+    end
+
+    if #self.lockedBricks > 0 then
+        self.spawnKey = true
+    end
+
+    self.powerUpTimer = 0
+    self.powerup = Powerup()
+
+    --if the key powerup needs to be spawned, then spawn key, otherwise spawn multiball
+    --if I want to add more powerups in the future, might be good idea to make a table to randomly pick from instead
+    --since KEY is in the last index, I can find a way to exclude it if the key needs to be spawned
+    self:generateNewPowerup()
+
 end
 
 function PlayState:update(dt)
@@ -66,7 +88,7 @@ function PlayState:update(dt)
         if ball:collides(self.paddle) then
             -- raise ball above paddle in case it goes below it, then reverse dy
             ball.y = self.paddle.y - 8
-            ball.dy = -self.ball.dy
+            ball.dy = -ball.dy
 
             --
             -- tweak angle of bounce based on where it hits the paddle
@@ -93,28 +115,39 @@ function PlayState:update(dt)
             -- only check collision if we're in play
             if brick.inPlay and ball:collides(brick) then
 
-                -- add to score
-                self.score = self.score + (brick.tier * 200 + brick.color * 25)
+                if brick.isLockedBrick and not brick.unlocked then
+                    gSounds['no-select']:stop()
+                    gSounds['no-select']:play()
+                end
 
-                -- trigger the brick's hit function, which removes it from play
-                brick:hit()
+                if not brick.isLockedBrick or brick.unlocked then
+                    -- add to score
+                    if brick.isLockedBrick then
+                        self.score = self.score + 1000
+                    else
+                        self.score = self.score + (brick.tier * 200 + brick.color * 25)
+                    end
 
-                -- if we have enough points, recover a point of health
-                -- also for now we'll use this as a condition to grow the size of the paddle
-                if self.score > self.recoverPoints then
-                    -- can't go above 3 health
-                    self.health = math.min(3, self.health + 1)
+                    -- trigger the brick's hit function, which removes it from play
+                    brick:hit()
 
-                    -- multiply recover points by 2
-                    self.recoverPoints = math.min(100000, self.recoverPoints * 2)
+                    -- if we have enough points, recover a point of health
+                    -- also for now we'll use this as a condition to grow the size of the paddle
+                    if self.score > self.recoverPoints then
+                        -- can't go above 3 health
+                        self.health = math.min(3, self.health + 1)
 
-                    --grow the size of the paddle
-                    --can't grow above size 4
-                    self.paddle.size = math.min(4, self.paddle.size + 1)
-                    self.paddle.width = math.min(128, self.paddle.width + 32)
+                        -- multiply recover points by 2
+                        self.recoverPoints = math.min(100000, self.recoverPoints * 2)
 
-                    -- play recover sound effect
-                    gSounds['recover']:play()
+                        --grow the size of the paddle
+                        --can't grow above size 4
+                        self.paddle.size = math.min(4, self.paddle.size + 1)
+                        self.paddle.width = math.min(128, self.paddle.width + 32)
+
+                        -- play recover sound effect
+                        gSounds['recover']:play()
+                    end
                 end
 
                 -- go to our victory screen if there are no more bricks left
@@ -218,18 +251,30 @@ function PlayState:update(dt)
         brick:update(dt)
     end
 
+    self.powerUpTimer = self.powerUpTimer + dt
+
+    if self.powerUpTimer > SPAWNTIMER then
+        self.powerup.inPlay = true
+        self.powerUpTimer = 0
+    end
+
     --powerup logic
     if self.powerup.inPlay then
         self.powerup:update(dt)
     end
 
     if self.powerup:collides(self.paddle) then
-        self:activateMultiballPowerup()
-        self.powerup:reset(1)
+        if self.powerup.type == MULTIBALL then
+            self:activateMultiballPowerup()
+        elseif self.powerup.type == KEY then
+            self:unlockBricks()
+        end
+        --reset to either key or multiball powerup
+        self:generateNewPowerup()
     end
 
     if self.powerup.y > VIRTUAL_HEIGHT then
-        self.powerup:reset(1)
+        self:generateNewPowerup()
     end
 
 
@@ -278,6 +323,7 @@ function PlayState:checkVictory()
 end
 
 function PlayState:activateMultiballPowerup()
+    --create 2 balls and add them to the ball table
     for i = 0, 1 do
         b = Ball(math.random(7))
         b.x = self.balls[1].x
@@ -288,7 +334,27 @@ function PlayState:activateMultiballPowerup()
     end
 end
 
+function PlayState:unlockBricks()
+    --unlock all bricks in the locked bricks table and remove them from the table
+    for k, lockedbrick in pairs(self.lockedBricks) do
+        lockedbrick.unlocked = true
+        lockedbrick:emitParticles(64)
+    end
+
+    self.lockedbricks = {}
+    --make the game stop spawning the key powerup, since it will be useless once this function is called
+    self.spawnKey = false
+end
+
 function PlayState:setRandomBallVelocity(ball)
     ball.dx = math.random(-200, 200)
     ball.dy = math.random(-50, -60)
+end
+
+function PlayState:generateNewPowerup()
+    if self.spawnKey then
+        self.powerup:reset(math.random(2) == 1 and MULTIBALL or KEY)
+    else
+        self.powerup:reset(MULTIBALL)
+    end
 end

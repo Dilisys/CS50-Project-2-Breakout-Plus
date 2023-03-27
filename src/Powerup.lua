@@ -12,14 +12,9 @@ Powerup = Class{}
 --*once it's collected, wait until the timer is up, and reset it to the top
 --*This might work since there should be only one powerup on the screen at a time
 
-function Powerup:init(powerupType)
+function Powerup:init()
 	self.width = 16
 	self.height = 16 --I should probably change these, but later
-
-	self:reset(powerupType)
-
-	--sets a flag whether this has been collected or not
-	self.inPlay = true
 end
 
 function Powerup:reset(powerupType)

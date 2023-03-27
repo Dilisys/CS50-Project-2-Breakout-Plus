@@ -59,6 +59,13 @@ function Brick:init(x, y)
     self.y = y
     self.width = 32
     self.height = 16
+
+    -- used to determine if this brick is a locked brick or not
+    self.isLockedBrick = false
+
+    -- if it's a locked brick, this should determine if it's unlocked or not
+    -- need 2 different variables for this because the locked brick will be worth a different amount of points
+    self.unlocked = false
     
     -- used to determine whether this brick should be rendered
     self.inPlay = true
@@ -88,21 +95,18 @@ function Brick:hit()
     -- set the particle system to interpolate between two colors; in this case, we give
     -- it our self.color but with varying alpha; brighter for higher tiers, fading to 0
     -- over the particle's lifetime (the second color)
-    self.psystem:setColors(
-        paletteColors[self.color].r / 255,
-        paletteColors[self.color].g / 255,
-        paletteColors[self.color].b / 255,
-        55 * (self.tier + 1) / 255,
-        paletteColors[self.color].r / 255,
-        paletteColors[self.color].g / 255,
-        paletteColors[self.color].b / 255,
-        0
-    )
-    self.psystem:emit(64)
+    self:emitParticles(64)
 
     -- sound on hit
     gSounds['brick-hit-2']:stop()
     gSounds['brick-hit-2']:play()
+
+
+    --simply destroy the brick if it is an unlocked locked brick and return early
+    if self.isLockedBrick and self.unlocked then
+        self.inPlay = false
+        return
+    end
 
     -- if we're at a higher tier than the base, we need to go down a tier
     -- if we're already at the lowest color, else just go down a color
@@ -135,11 +139,16 @@ end
 
 function Brick:render()
     if self.inPlay then
-        love.graphics.draw(gTextures['main'], 
-            -- multiply color by 4 (-1) to get our color offset, then add tier to that
-            -- to draw the correct tier and color brick onto the screen
-            gFrames['bricks'][1 + ((self.color - 1) * 4) + self.tier],
-            self.x, self.y)
+        if self.isLockedBrick then
+            love.graphics.draw(gTextures['main'], gFrames['locked-bricks'][self.unlocked and 1 or 2],
+                self.x, self.y)
+        else
+            love.graphics.draw(gTextures['main'], 
+                -- multiply color by 4 (-1) to get our color offset, then add tier to that
+                -- to draw the correct tier and color brick onto the screen
+                gFrames['bricks'][1 + ((self.color - 1) * 4) + self.tier],
+                self.x, self.y)
+        end
     end
 end
 
@@ -149,4 +158,19 @@ end
 ]]
 function Brick:renderParticles()
     love.graphics.draw(self.psystem, self.x + 16, self.y + 8)
+end
+
+--function that emits particles
+function Brick:emitParticles(number)
+    self.psystem:setColors(
+        paletteColors[self.color].r / 255,
+        paletteColors[self.color].g / 255,
+        paletteColors[self.color].b / 255,
+        55 * (self.tier + 1) / 255,
+        paletteColors[self.color].r / 255,
+        paletteColors[self.color].g / 255,
+        paletteColors[self.color].b / 255,
+        0
+    )
+    self.psystem:emit(number)
 end
